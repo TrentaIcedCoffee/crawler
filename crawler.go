@@ -15,9 +15,10 @@ type Link struct {
 }
 
 type Config struct {
-	Depth      int
-	Breadth    int
-	NumWorkers int
+	Depth                    int
+	Breadth                  int
+	NumWorkers               int
+	RequestThrottlePerWorker time.Duration
 }
 
 type Crawler struct {
@@ -44,7 +45,7 @@ func (crawler *Crawler) ErrorTo(error_stream io.Writer) *Crawler {
 
 func (crawler *Crawler) Crawl(urls []string) *Crawler {
 	c := taskChannels{
-		Limiter:         time.Tick(10 * time.Millisecond),
+		RequestLimiter:  time.Tick(crawler.config.RequestThrottlePerWorker),
 		Tasks:           make(chan task, kChannelMaxSize),
 		PendingTaskCnt:  make(chan int),
 		FinishedTaskCnt: make(chan int),
@@ -106,7 +107,7 @@ type task struct {
 }
 
 type taskChannels struct {
-	Limiter         <-chan time.Time
+	RequestLimiter  <-chan time.Time
 	Tasks           chan task
 	PendingTaskCnt  chan int
 	FinishedTaskCnt chan int
@@ -130,7 +131,7 @@ func worker(id int, config *Config, wg *sync.WaitGroup, c *taskChannels, logger 
 	defer wg.Done()
 
 	for t := range c.Tasks {
-		<-c.Limiter
+		<-c.RequestLimiter
 		links, errs := scrapeLinks(t.Url)
 		if config.Breadth > 0 && len(links) > config.Breadth {
 			links = links[:config.Breadth]
