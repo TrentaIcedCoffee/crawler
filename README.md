@@ -14,7 +14,7 @@ crawler.NewCrawler(&crawler.Config{
   RequestThrottlePerWorker: 100 * time.Millisecond,
 }).OutputTo(output_file).ErrorTo(error_file).Crawl([]string{"https://example.com"})
 
-// 50 workers, each sending 100 requests per second, results in 5000 requests per second.
+// 50 workers, each sending 10 requests per second, results in 500 requests per second.
 ```
 
 Output is in CSV format of `<url>,<text>`.
