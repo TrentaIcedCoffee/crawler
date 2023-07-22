@@ -18,3 +18,7 @@ crawler.NewCrawler(&crawler.Config{
 ```
 
 Output is in CSV format of `<url>,<text>`.
+
+## Design
+
+![design](/diagram.jpg)
