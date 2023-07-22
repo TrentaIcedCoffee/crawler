@@ -7,18 +7,14 @@ Concurrent web crawler in Go using goroutines.
 In your main func
 
 ```go
-crawler.Crawl([]string{"https://example.com"}, &crawler.Config{
-  Depth:      3,
-  Breadth:    0, // Breadth == 0 gets all links on a page.
-  IsDebug:    true,
-  NumWorkers: 10,
-})
-```
+crawler.NewCrawler(&crawler.Config{
+  Depth:                    3,
+  Breadth:                  0, // Using breadth = 0 to get all links on a page.
+  NumWorkers:               50,
+  RequestThrottlePerWorker: 100 * time.Millisecond,
+}).OutputTo(output_file).ErrorTo(error_file).Crawl([]string{"https://example.com"})
 
-Then
-
-```sh
-go run . 2> ./error > ./output
+// 50 workers, each sending 100 requests per second, results in 5000 requests per second.
 ```
 
 Output is in CSV format of `<url>,<text>`.
