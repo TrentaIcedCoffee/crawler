@@ -2,23 +2,34 @@ package crawler
 
 import (
 	"fmt"
+	"io"
 	"os"
 )
 
 type logger struct {
-	isDebug bool
+	error_stream  io.Writer
+	output_stream io.Writer
 }
 
-func (logger *logger) Debug(format string, a ...any) {
-	if logger.isDebug {
-		fmt.Println("[DEBUG] " + fmt.Sprintf(format, a...))
+func (logger *logger) output(format string, a ...any) {
+	format = format + "\n"
+	if logger.output_stream == nil {
+		fmt.Fprintf(os.Stdout, format, a...)
+	} else {
+		fmt.Fprintf(logger.output_stream, format, a...)
 	}
 }
 
-func (logger *logger) Output(format string, a ...any) {
-	fmt.Println(fmt.Sprintf(format, a...))
+func (logger *logger) error(format string, a ...any) {
+	format = format + "\n"
+	if logger.error_stream == nil {
+		fmt.Fprintf(os.Stderr, format, a...)
+	} else {
+		fmt.Fprintf(logger.error_stream, format, a...)
+	}
 }
 
-func (logger *logger) Error(format string, a ...any) {
-	fmt.Fprintln(os.Stderr, "[ERROR] "+fmt.Sprintf(format, a...))
+func (logger *logger) debug(format string, a ...any) {
+	format = "[DEBUG] " + format + "\n"
+	fmt.Fprintf(os.Stdout, format, a...)
 }
