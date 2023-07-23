@@ -20,6 +20,15 @@ func TestExtractTextReturnsTextWithOrder(t *testing.T) {
 	expectEqual(t, extractText(node), "abc")
 }
 
+func TestExtractTextReplaceNewlineToSpace(t *testing.T) {
+	node, err := html.Parse(strings.NewReader("<p>a\nb</p>"))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectEqual(t, extractText(node), "a b")
+}
+
 func TestExtractTextReturnsTextOfAnchor(t *testing.T) {
 	node, err := html.Parse(strings.NewReader(`
 		<a href="example.com">text</a>

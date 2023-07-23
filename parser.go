@@ -44,5 +44,5 @@ func extractText(node *html.Node) string {
 		}
 	})
 
-	return text
+	return strings.ReplaceAll(text, "\n", " ")
 }
