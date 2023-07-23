@@ -57,3 +57,19 @@ func TestJoinUrlErrorsWhenRelativeUrlInvalid(t *testing.T) {
 		t.Fatalf("Expect error but got %s", url)
 	}
 }
+
+func TestToCsvReturnsRawWhenNoSpecialChar(t *testing.T) {
+	expectEqual(t, toCsv("abc"), "abc")
+}
+
+func TestToCsvQuotesComma(t *testing.T) {
+	expectEqual(t, toCsv("a,bc"), "\"a,bc\"")
+}
+
+func TestToCsvQuotesNewline(t *testing.T) {
+	expectEqual(t, toCsv("a\nbc"), "\"a\nbc\"")
+}
+
+func TestToCsvDoubleQuotes(t *testing.T) {
+	expectEqual(t, toCsv("a\"bc"), "\"a\"\"bc\"")
+}

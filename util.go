@@ -67,3 +67,10 @@ func joinUrl(domain string, url string) (string, error) {
 	}
 	return "", errors.New(fmt.Sprintf("Cannot join domain %s with url %s", domain, url))
 }
+
+func toCsv(raw string) string {
+	if strings.ContainsAny(raw, ",\"\n") {
+		return "\"" + strings.ReplaceAll(raw, "\"", "\"\"") + "\""
+	}
+	return raw
+}
