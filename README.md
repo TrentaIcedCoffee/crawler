@@ -17,7 +17,7 @@ crawler.NewCrawler(&crawler.Config{
 // 50 workers, each sending 10 requests per second, results in 500 requests per second.
 ```
 
-Output is in CSV format of `<url>,<text>`.
+Output is in CSV format of `<url>,<text>`. Can be directly loaded to Pandas. Feel free to use.
 
 ## Design
 
