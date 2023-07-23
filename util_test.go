@@ -26,3 +26,34 @@ func TestGetDomainErrorsWhenNoProtocal(t *testing.T) {
 		t.Fatalf("Url without protocal should returns an error")
 	}
 }
+
+func TestJoinUrlJoinsAbsoluteUrl(t *testing.T) {
+	url, err := joinUrl("http://a.com", "https://b.com")
+	if err != nil {
+		t.FailNow()
+	}
+	expectEqual(t, url, "https://b.com")
+}
+
+func TestJoinUrlJoinsRelativeUrl(t *testing.T) {
+	url, err := joinUrl("https://a.com/b", "../c")
+	if err != nil {
+		t.FailNow()
+	}
+	expectEqual(t, url, "https://a.com/c")
+}
+
+func TestJoinUrlJoinsRelativeUrlBackwardOnly(t *testing.T) {
+	url, err := joinUrl("https://a.com/b", "../")
+	if err != nil {
+		t.FailNow()
+	}
+	expectEqual(t, url, "https://a.com")
+}
+
+func TestJoinUrlErrorsWhenRelativeUrlInvalid(t *testing.T) {
+	url, err := joinUrl("https://a.com/b", "../../c")
+	if err == nil {
+		t.Fatalf("Expect error but got %s", url)
+	}
+}

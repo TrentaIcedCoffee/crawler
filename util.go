@@ -44,6 +44,26 @@ func joinUrl(domain string, url string) (string, error) {
 		return domain + url, nil
 	} else if strings.HasPrefix(url, "#") {
 		return domain + url, nil
+	} else if strings.HasPrefix(url, "./") {
+		return domain + url[1:], nil
+	} else if strings.HasPrefix(url, "../") {
+		parent_end, child_start := len(domain)-1, 0
+		for child_start+3 <= len(url) && url[child_start:child_start+3] == "../" {
+			child_start += 3
+			for parent_end > 0 && domain[parent_end] != '/' {
+				parent_end--
+			}
+			if parent_end == 0 || parent_end == len(kHttps)-1 && strings.HasPrefix(domain, kHttps) || parent_end == len(kHttp)-1 && strings.HasPrefix(domain, kHttp) {
+				return "", errors.New(fmt.Sprintf("joinUrl cannot slide backward on domain to join %s, %s", domain, url))
+			}
+			parent_end--
+		}
+		if child_start < len(url) {
+			return domain[:parent_end+1] + "/" + url[child_start:], nil
+		} else {
+			return domain[:parent_end+1], nil
+		}
+
 	}
 	return "", errors.New(fmt.Sprintf("Cannot join domain %s with url %s", domain, url))
 }
