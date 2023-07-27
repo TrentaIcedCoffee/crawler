@@ -2,6 +2,7 @@ package crawler
 
 import (
 	"sync"
+	"sync/atomic"
 
 	"io"
 	"time"
@@ -22,16 +23,20 @@ type Config struct {
 }
 
 type Crawler struct {
-	config  *Config
-	visited *concurrentSet
-	logger  *logger
+	config   *Config
+	visited  *concurrentSet
+	logger   *logger
+	finished uint64
+	total    uint64
 }
 
 func NewCrawler(config *Config) *Crawler {
 	return &Crawler{
-		config:  config,
-		visited: newConcurrentSet(),
-		logger:  &logger{output_stream: nil, error_stream: nil},
+		config:   config,
+		visited:  newConcurrentSet(),
+		logger:   &logger{output_stream: nil, error_stream: nil},
+		finished: 0,
+		total:    0,
 	}
 }
 
@@ -47,12 +52,10 @@ func (crawler *Crawler) ErrorTo(error_stream io.Writer) *Crawler {
 
 func (crawler *Crawler) Crawl(urls []string) *Crawler {
 	c := taskChannels{
-		Tasks:           make(chan task, kChannelMaxSize),
-		PendingTaskCnt:  make(chan int),
-		FinishedTaskCnt: make(chan int),
-		TotalTaskCnt:    make(chan int),
-		Links:           make(chan Link),
-		Errors:          make(chan error),
+		Tasks:          make(chan task, kChannelMaxSize),
+		PendingTaskCnt: make(chan int),
+		Links:          make(chan Link),
+		Errors:         make(chan error),
 	}
 
 	var wg sync.WaitGroup
@@ -64,14 +67,14 @@ func (crawler *Crawler) Crawl(urls []string) *Crawler {
 	wg.Add(1)
 	go controller(len(urls), &wg, &c, crawler.logger)
 	wg.Add(1)
-	go peeker(&c, &wg, crawler.logger)
+	go peeker(crawler, &c, &wg, crawler.logger)
 
 	for _, url := range urls {
 		c.Tasks <- task{
 			Url:   url,
 			Depth: 0,
 		}
-		c.TotalTaskCnt <- 1
+		atomic.AddUint64(&crawler.total, 1)
 	}
 
 	links_c_closed := false
@@ -108,19 +111,15 @@ type task struct {
 }
 
 type taskChannels struct {
-	Tasks           chan task
-	PendingTaskCnt  chan int
-	FinishedTaskCnt chan int
-	TotalTaskCnt    chan int
-	Links           chan Link
-	Errors          chan error
+	Tasks          chan task
+	PendingTaskCnt chan int
+	Links          chan Link
+	Errors         chan error
 }
 
 func closeAllChannels(ch *taskChannels) {
 	close(ch.Tasks)
 	close(ch.PendingTaskCnt)
-	close(ch.FinishedTaskCnt)
-	close(ch.TotalTaskCnt)
 	close(ch.Links)
 	close(ch.Errors)
 }
@@ -154,12 +153,12 @@ func worker(id int, crawler *Crawler, wg *sync.WaitGroup, c *taskChannels) {
 					Depth: t.Depth + 1,
 				}
 				c.PendingTaskCnt <- 1
-				c.TotalTaskCnt <- 1
+				atomic.AddUint64(&crawler.total, 1)
 			}
 		}
 
 		c.PendingTaskCnt <- -1
-		c.FinishedTaskCnt <- 1
+		atomic.AddUint64(&crawler.finished, 1)
 	}
 }
 
@@ -177,34 +176,18 @@ func controller(initial_task_cnt int, wg *sync.WaitGroup, c *taskChannels, logge
 	}
 }
 
-func peeker(c *taskChannels, wg *sync.WaitGroup, logger *logger) {
+func peeker(crawler *Crawler, c *taskChannels, wg *sync.WaitGroup, logger *logger) {
 	logger.debug("Peeker spawned")
 	defer logger.debug("Peeker exit")
 	defer wg.Done()
 
 	peek_limiter := time.Tick(500 * time.Millisecond)
-	finished, total := 0, 0
 
-	finished_c_closed, total_c_closed := false, false
 	for {
-		select {
-		case delta, ok := <-c.FinishedTaskCnt:
-			if ok {
-				finished += delta
-			} else {
-				finished_c_closed = true
-			}
-		case delta, ok := <-c.TotalTaskCnt:
-			if ok {
-				total += delta
-			} else {
-				total_c_closed = true
-			}
-		case <-peek_limiter:
-			logger.debug("Progress %d/%d. Pending %d", finished, total, len(c.Tasks))
-			if finished_c_closed && total_c_closed {
-				return
-			}
+		<-peek_limiter
+		logger.debug("Progress %d/%d. Queued %d", crawler.finished, crawler.total, len(c.Tasks))
+		if len(c.Tasks) == 0 && crawler.finished == crawler.total {
+			break
 		}
 	}
 }
