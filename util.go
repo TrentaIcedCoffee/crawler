@@ -1,6 +1,8 @@
 package crawler
 
 import (
+	"crypto/md5"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"reflect"
@@ -10,6 +12,12 @@ import (
 
 const kHttp = "http://"
 const kHttps = "https://"
+
+func hash(input string) string {
+	hash := md5.New()
+	hash.Write([]byte(input))
+	return hex.EncodeToString(hash.Sum(nil))
+}
 
 func expectEqual(t *testing.T, actual interface{}, expect interface{}) {
 	if !reflect.DeepEqual(actual, expect) {

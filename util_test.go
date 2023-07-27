@@ -4,6 +4,10 @@ import (
 	"testing"
 )
 
+func TestHash(t *testing.T) {
+	expectEqual(t, hash("abc"), "900150983cd24fb0d6963f7d28e17f72")
+}
+
 func TestGetDomainReturnsDomainExpectedly(t *testing.T) {
 	domain, err := getDomain("http://abc.com/a/b/c")
 	if err != nil {

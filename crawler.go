@@ -22,14 +22,16 @@ type Config struct {
 }
 
 type Crawler struct {
-	config *Config
-	logger *logger
+	config  *Config
+	visited *concurrentSet
+	logger  *logger
 }
 
 func NewCrawler(config *Config) *Crawler {
 	return &Crawler{
-		config: config,
-		logger: &logger{output_stream: nil, error_stream: nil},
+		config:  config,
+		visited: newConcurrentSet(),
+		logger:  &logger{output_stream: nil, error_stream: nil},
 	}
 }
 
@@ -57,7 +59,7 @@ func (crawler *Crawler) Crawl(urls []string) *Crawler {
 
 	for i := 0; i < crawler.config.NumWorkers; i++ {
 		wg.Add(1)
-		go worker(i, crawler.config, &wg, &c, crawler.logger)
+		go worker(i, crawler, &wg, &c)
 	}
 	wg.Add(1)
 	go controller(len(urls), &wg, &c, crawler.logger)
@@ -123,25 +125,30 @@ func closeAllChannels(ch *taskChannels) {
 	close(ch.Errors)
 }
 
-func worker(id int, config *Config, wg *sync.WaitGroup, c *taskChannels, logger *logger) {
-	logger.debug("Worker %d spawned", id)
-	defer logger.debug("Worker %d exit", id)
+func worker(id int, crawler *Crawler, wg *sync.WaitGroup, c *taskChannels) {
+	crawler.logger.debug("Worker %d spawned", id)
+	defer crawler.logger.debug("Worker %d exit", id)
 	defer wg.Done()
 
-	limiter := time.Tick(config.RequestThrottlePerWorker)
+	limiter := time.Tick(crawler.config.RequestThrottlePerWorker)
 
 	for t := range c.Tasks {
 		<-limiter
 		links, errs := scrapeLinks(t.Url)
-		if config.Breadth > 0 && len(links) > config.Breadth {
-			links = links[:config.Breadth]
+		if crawler.config.Breadth > 0 && len(links) > crawler.config.Breadth {
+			links = links[:crawler.config.Breadth]
 		}
 		for _, err := range errs {
 			c.Errors <- err
 		}
 		for _, link := range links {
+			if crawler.visited.has(hash(link.Url)) {
+				continue
+			}
+			// Ideally we should check if the add inserts a new value, but this is fine.
+			crawler.visited.add(hash(link.Url))
 			c.Links <- link
-			if t.Depth+1 < config.Depth {
+			if t.Depth+1 < crawler.config.Depth {
 				c.Tasks <- task{
 					Url:   link.Url,
 					Depth: t.Depth + 1,
