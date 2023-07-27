@@ -19,7 +19,7 @@ func parseLinks(html_reader io.Reader) ([]Link, error) {
 		if node.Type == html.ElementNode && node.Data == "a" {
 			for _, attr := range node.Attr {
 				if attr.Key == "href" {
-					links = append(links, Link{attr.Val, extractText(node)})
+					links = append(links, Link{strings.TrimSpace(attr.Val), strings.TrimSpace(extractText(node))})
 					break
 				}
 			}

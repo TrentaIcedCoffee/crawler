@@ -51,6 +51,17 @@ func TestParseLinksReturnsLinksWithText(t *testing.T) {
 	expectEqual(t, links, []Link{{"example.com", "text"}})
 }
 
+func TestParseLinksTrimTrailingWhitespaces(t *testing.T) {
+	links, err := parseLinks(strings.NewReader(`
+		<a href=" example.com "> text </a>
+	`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectEqual(t, links, []Link{{"example.com", "text"}})
+}
+
 func TestParseLinksReturnsMultipleLinkWithText(t *testing.T) {
 	links, err := parseLinks(strings.NewReader(`
 		<div>
