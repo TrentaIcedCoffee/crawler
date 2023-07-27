@@ -2,13 +2,13 @@ package crawler
 
 import (
 	"sync"
-	"sync/atomic"
 
 	"io"
 	"time"
 )
 
 const kChannelMaxSize = 4_000_000 // Consumes 96 MB RAM.
+const kChannelDefautSize = 10
 
 type Link struct {
 	Url  string
@@ -23,20 +23,16 @@ type Config struct {
 }
 
 type Crawler struct {
-	config   *Config
-	visited  *concurrentSet
-	logger   *logger
-	finished uint64
-	total    uint64
+	config  *Config
+	visited *concurrentSet
+	logger  *logger
 }
 
 func NewCrawler(config *Config) *Crawler {
 	return &Crawler{
-		config:   config,
-		visited:  newConcurrentSet(),
-		logger:   &logger{output_stream: nil, error_stream: nil},
-		finished: 0,
-		total:    0,
+		config:  config,
+		visited: newConcurrentSet(),
+		logger:  &logger{output_stream: nil, error_stream: nil},
 	}
 }
 
@@ -51,30 +47,25 @@ func (this *Crawler) ErrorTo(error_stream io.Writer) *Crawler {
 }
 
 func (this *Crawler) Crawl(urls []string) *Crawler {
-	cs := channels{
-		tasks:          make(chan task, kChannelMaxSize),
-		pendingTaskCnt: make(chan int),
-		links:          make(chan Link),
-		errors:         make(chan error),
-	}
+	cs := makeAllChannels()
 
 	var wg sync.WaitGroup
 
 	for i := 0; i < this.config.NumWorkers; i++ {
 		wg.Add(1)
-		go this.worker(i, &wg, &cs)
+		go this.worker(i, &wg, cs)
 	}
 	wg.Add(1)
-	go this.controller(len(urls), &wg, &cs)
+	go this.controller(len(urls), &wg, cs)
 	wg.Add(1)
-	go this.peeker(&wg, &cs)
+	go this.peeker(&wg, cs)
 
 	for _, url := range urls {
 		cs.tasks <- task{
 			url:   url,
 			depth: 0,
 		}
-		atomic.AddUint64(&this.total, 1)
+		cs.total <- 1
 	}
 
 	links_c_closed := false
@@ -114,6 +105,19 @@ type channels struct {
 	pendingTaskCnt chan int
 	links          chan Link
 	errors         chan error
+	finished       chan int
+	total          chan int
+}
+
+func makeAllChannels() *channels {
+	return &channels{
+		tasks:          make(chan task, kChannelMaxSize),
+		pendingTaskCnt: make(chan int, kChannelDefautSize),
+		links:          make(chan Link, kChannelDefautSize),
+		errors:         make(chan error, kChannelDefautSize),
+		finished:       make(chan int, kChannelDefautSize),
+		total:          make(chan int, kChannelDefautSize),
+	}
 }
 
 func closeAllChannels(cs *channels) {
@@ -121,6 +125,8 @@ func closeAllChannels(cs *channels) {
 	close(cs.pendingTaskCnt)
 	close(cs.links)
 	close(cs.errors)
+	close(cs.finished)
+	close(cs.total)
 }
 
 func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
@@ -152,12 +158,12 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 					depth: t.depth + 1,
 				}
 				cs.pendingTaskCnt <- 1
-				atomic.AddUint64(&this.total, 1)
+				cs.total <- 1
 			}
 		}
 
 		cs.pendingTaskCnt <- -1
-		atomic.AddUint64(&this.finished, 1)
+		cs.finished <- 1
 	}
 }
 
@@ -181,12 +187,28 @@ func (this *Crawler) peeker(wg *sync.WaitGroup, cs *channels) {
 	defer wg.Done()
 
 	peek_limiter := time.Tick(500 * time.Millisecond)
+	finished, total := 0, 0
+	finished_closed, total_closed := false, false
 
 	for {
-		<-peek_limiter
-		this.logger.debug("Progress %d/%d. Queued %d", this.finished, this.total, len(cs.tasks))
-		if len(cs.tasks) == 0 && this.finished == this.total {
-			break
+		select {
+		case delta, ok := <-cs.finished:
+			if ok {
+				finished += delta
+			} else {
+				finished_closed = true
+			}
+		case delta, ok := <-cs.total:
+			if ok {
+				total += delta
+			} else {
+				total_closed = true
+			}
+		case <-peek_limiter:
+			this.logger.debug("Progress %d/%d. Queued %d", finished, total, len(cs.tasks))
+			if finished_closed && total_closed {
+				return
+			}
 		}
 	}
 }
