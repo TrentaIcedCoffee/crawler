@@ -40,60 +40,59 @@ func NewCrawler(config *Config) *Crawler {
 	}
 }
 
-func (crawler *Crawler) OutputTo(output_stream io.Writer) *Crawler {
-	crawler.logger.output_stream = output_stream
-	return crawler
+func (this *Crawler) OutputTo(output_stream io.Writer) *Crawler {
+	this.logger.output_stream = output_stream
+	return this
 }
 
-func (crawler *Crawler) ErrorTo(error_stream io.Writer) *Crawler {
-	crawler.logger.error_stream = error_stream
-	return crawler
+func (this *Crawler) ErrorTo(error_stream io.Writer) *Crawler {
+	this.logger.error_stream = error_stream
+	return this
 }
 
-func (crawler *Crawler) Crawl(urls []string) *Crawler {
-	c := taskChannels{
-		Tasks:          make(chan task, kChannelMaxSize),
-		PendingTaskCnt: make(chan int),
-		Links:          make(chan Link),
-		Errors:         make(chan error),
+func (this *Crawler) Crawl(urls []string) *Crawler {
+	cs := channels{
+		tasks:          make(chan task, kChannelMaxSize),
+		pendingTaskCnt: make(chan int),
+		links:          make(chan Link),
+		errors:         make(chan error),
 	}
 
 	var wg sync.WaitGroup
 
-	for i := 0; i < crawler.config.NumWorkers; i++ {
+	for i := 0; i < this.config.NumWorkers; i++ {
 		wg.Add(1)
-		go worker(i, crawler, &wg, &c)
+		go this.worker(i, &wg, &cs)
 	}
 	wg.Add(1)
-	go controller(len(urls), &wg, &c, crawler.logger)
+	go this.controller(len(urls), &wg, &cs)
 	wg.Add(1)
-	go peeker(crawler, &c, &wg, crawler.logger)
+	go this.peeker(&wg, &cs)
 
 	for _, url := range urls {
-		c.Tasks <- task{
-			Url:   url,
-			Depth: 0,
+		cs.tasks <- task{
+			url:   url,
+			depth: 0,
 		}
-		atomic.AddUint64(&crawler.total, 1)
+		atomic.AddUint64(&this.total, 1)
 	}
 
 	links_c_closed := false
 	errors_c_closed := false
 	for {
 		select {
-		case link, ok := <-c.Links:
+		case link, ok := <-cs.links:
 			if ok {
-				crawler.logger.output("%s,%s", link.Url, toCsv(link.Text))
+				this.logger.output("%s,%s", link.Url, toCsv(link.Text))
 			} else {
 				links_c_closed = true
 			}
-		case err, ok := <-c.Errors:
+		case err, ok := <-cs.errors:
 			if ok {
-				crawler.logger.error("%v", err)
+				this.logger.error("%v", err)
 			} else {
 				errors_c_closed = true
 			}
-		default:
 		}
 
 		if links_c_closed && errors_c_closed {
@@ -102,91 +101,91 @@ func (crawler *Crawler) Crawl(urls []string) *Crawler {
 		}
 	}
 
-	return crawler
+	return this
 }
 
 type task struct {
-	Url   string
-	Depth int
+	url   string
+	depth int
 }
 
-type taskChannels struct {
-	Tasks          chan task
-	PendingTaskCnt chan int
-	Links          chan Link
-	Errors         chan error
+type channels struct {
+	tasks          chan task
+	pendingTaskCnt chan int
+	links          chan Link
+	errors         chan error
 }
 
-func closeAllChannels(ch *taskChannels) {
-	close(ch.Tasks)
-	close(ch.PendingTaskCnt)
-	close(ch.Links)
-	close(ch.Errors)
+func closeAllChannels(cs *channels) {
+	close(cs.tasks)
+	close(cs.pendingTaskCnt)
+	close(cs.links)
+	close(cs.errors)
 }
 
-func worker(id int, crawler *Crawler, wg *sync.WaitGroup, c *taskChannels) {
-	crawler.logger.debug("Worker %d spawned", id)
-	defer crawler.logger.debug("Worker %d exit", id)
+func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
+	this.logger.debug("Worker %d spawned", id)
+	defer this.logger.debug("Worker %d exit", id)
 	defer wg.Done()
 
-	limiter := time.Tick(crawler.config.RequestThrottlePerWorker)
+	limiter := time.Tick(this.config.RequestThrottlePerWorker)
 
-	for t := range c.Tasks {
+	for t := range cs.tasks {
 		<-limiter
-		links, errs := scrapeLinks(t.Url)
-		if crawler.config.Breadth > 0 && len(links) > crawler.config.Breadth {
-			links = links[:crawler.config.Breadth]
+		links, errs := scrapeLinks(t.url)
+		if this.config.Breadth > 0 && len(links) > this.config.Breadth {
+			links = links[:this.config.Breadth]
 		}
 		for _, err := range errs {
-			c.Errors <- err
+			cs.errors <- err
 		}
 		for _, link := range links {
-			if crawler.visited.has(hash(link.Url)) {
+			if this.visited.has(hash(link.Url)) {
 				continue
 			}
 			// Ideally we should check if the add inserts a new value, but this is fine.
-			crawler.visited.add(hash(link.Url))
-			c.Links <- link
-			if t.Depth+1 < crawler.config.Depth {
-				c.Tasks <- task{
-					Url:   link.Url,
-					Depth: t.Depth + 1,
+			this.visited.add(hash(link.Url))
+			cs.links <- link
+			if t.depth+1 < this.config.Depth {
+				cs.tasks <- task{
+					url:   link.Url,
+					depth: t.depth + 1,
 				}
-				c.PendingTaskCnt <- 1
-				atomic.AddUint64(&crawler.total, 1)
+				cs.pendingTaskCnt <- 1
+				atomic.AddUint64(&this.total, 1)
 			}
 		}
 
-		c.PendingTaskCnt <- -1
-		atomic.AddUint64(&crawler.finished, 1)
+		cs.pendingTaskCnt <- -1
+		atomic.AddUint64(&this.finished, 1)
 	}
 }
 
-func controller(initial_task_cnt int, wg *sync.WaitGroup, c *taskChannels, logger *logger) {
-	logger.debug("Controller spawned")
-	defer logger.debug("Controller exit")
+func (this *Crawler) controller(initial_task_cnt int, wg *sync.WaitGroup, cs *channels) {
+	this.logger.debug("Controller spawned")
+	defer this.logger.debug("Controller exit")
 	defer wg.Done()
 
 	cnt := initial_task_cnt
-	for delta := range c.PendingTaskCnt {
+	for delta := range cs.pendingTaskCnt {
 		cnt += delta
 		if cnt == 0 {
-			closeAllChannels(c)
+			closeAllChannels(cs)
 		}
 	}
 }
 
-func peeker(crawler *Crawler, c *taskChannels, wg *sync.WaitGroup, logger *logger) {
-	logger.debug("Peeker spawned")
-	defer logger.debug("Peeker exit")
+func (this *Crawler) peeker(wg *sync.WaitGroup, cs *channels) {
+	this.logger.debug("Peeker spawned")
+	defer this.logger.debug("Peeker exit")
 	defer wg.Done()
 
 	peek_limiter := time.Tick(500 * time.Millisecond)
 
 	for {
 		<-peek_limiter
-		logger.debug("Progress %d/%d. Queued %d", crawler.finished, crawler.total, len(c.Tasks))
-		if len(c.Tasks) == 0 && crawler.finished == crawler.total {
+		this.logger.debug("Progress %d/%d. Queued %d", this.finished, this.total, len(cs.tasks))
+		if len(cs.tasks) == 0 && this.finished == this.total {
 			break
 		}
 	}
