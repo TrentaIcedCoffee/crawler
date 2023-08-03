@@ -20,6 +20,7 @@ type Config struct {
 	Breadth                  int
 	NumWorkers               int
 	RequestThrottlePerWorker time.Duration
+	SameHostname             bool
 }
 
 type Crawler struct {
@@ -138,7 +139,7 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 
 	for t := range cs.tasks {
 		<-limiter
-		links, errs := scrapeLinks(t.url)
+		links, errs := scrapeLinks(t.url, this.config.SameHostname)
 		if this.config.Breadth > 0 && len(links) > this.config.Breadth {
 			links = links[:this.config.Breadth]
 		}
