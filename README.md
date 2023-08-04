@@ -14,11 +14,9 @@ crawler.NewCrawler(&crawler.Config{
   RequestThrottlePerWorker: 50 * time.Millisecond,  // Limited to 100 workers * (1000 / 50) = 2000 requests per second.
   SameHostname:             true,                   // Keep only links from the same hostname.
 }).OutputTo(output_file).ErrorTo(error_file).Crawl([]string{"https://example.com"})
-
-// 50 workers, each sending 10 requests per second, results in 500 requests per second.
 ```
 
-Output is in CSV format of `<url>,<text>`. Can be directly loaded to Pandas. Feel free to use.
+Output is in CSV format of `<url>,<text>,<page_title>`. Can be directly loaded to Pandas. Feel free to use.
 
 ## Design
 
