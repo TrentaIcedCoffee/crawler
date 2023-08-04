@@ -11,8 +11,9 @@ const kChannelMaxSize = 4_000_000 // Consumes 96 MB RAM.
 const kChannelDefautSize = 10
 
 type Link struct {
-	Url  string
-	Text string
+	Url   string
+	Text  string
+	Title string
 }
 
 type Config struct {
@@ -63,8 +64,9 @@ func (this *Crawler) Crawl(urls []string) *Crawler {
 
 	for _, url := range urls {
 		cs.tasks <- task{
-			url:   url,
-			depth: 0,
+			taskType: crawlingTask,
+			url:      url,
+			depth:    0,
 		}
 		cs.total <- 1
 	}
@@ -75,7 +77,7 @@ func (this *Crawler) Crawl(urls []string) *Crawler {
 		select {
 		case link, ok := <-cs.links:
 			if ok {
-				this.logger.output("%s,%s", link.Url, toCsv(link.Text))
+				this.logger.output("%s,%s,%s", link.Url, toCsv(link.Text), toCsv(link.Title))
 			} else {
 				links_c_closed = true
 			}
@@ -96,9 +98,16 @@ func (this *Crawler) Crawl(urls []string) *Crawler {
 	return this
 }
 
+const (
+	crawlingTask = iota
+	pageTitleTask
+)
+
 type task struct {
-	url   string
-	depth int
+	taskType int
+	url      string
+	depth    int
+	link     Link
 }
 
 type channels struct {
@@ -139,33 +148,54 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 
 	for t := range cs.tasks {
 		<-limiter
-		links, errs := scrapeLinks(t.url, this.config.SameHostname)
-		if this.config.Breadth > 0 && len(links) > this.config.Breadth {
-			links = links[:this.config.Breadth]
+		if t.taskType == crawlingTask {
+			this.handleCrawlingTask(&t, cs)
+		} else if t.taskType == pageTitleTask {
+			this.handlePageTitleTask(&t, cs)
 		}
-		for _, err := range errs {
-			cs.errors <- err
-		}
-		for _, link := range links {
-			if this.visited.has(hash(link.Url)) {
-				continue
-			}
-			// Ideally we should check if the add inserts a new value, but this is fine.
-			this.visited.add(hash(link.Url))
-			cs.links <- link
-			if t.depth+1 < this.config.Depth {
-				cs.tasks <- task{
-					url:   link.Url,
-					depth: t.depth + 1,
-				}
-				cs.pendingTaskCnt <- 1
-				cs.total <- 1
-			}
-		}
-
-		cs.pendingTaskCnt <- -1
-		cs.finished <- 1
 	}
+}
+
+func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
+	links, errs := scrapeLinks(t.url, this.config.SameHostname)
+	if this.config.Breadth > 0 && len(links) > this.config.Breadth {
+		links = links[:this.config.Breadth]
+	}
+	for _, err := range errs {
+		cs.errors <- err
+	}
+	for _, link := range links {
+		if this.visited.has(hash(link.Url)) {
+			continue
+		}
+		// Ideally we should check if the add inserts a new value, but this is fine.
+		this.visited.add(hash(link.Url))
+		cs.tasks <- task{taskType: pageTitleTask, link: link}
+		cs.pendingTaskCnt <- 1
+		cs.total <- 1
+		if t.depth+1 < this.config.Depth {
+			cs.tasks <- task{
+				taskType: crawlingTask,
+				url:      link.Url,
+				depth:    t.depth + 1,
+			}
+			cs.pendingTaskCnt <- 1
+			cs.total <- 1
+		}
+	}
+	cs.pendingTaskCnt <- -1
+	cs.finished <- 1
+}
+
+func (this *Crawler) handlePageTitleTask(t *task, cs *channels) {
+	title, err := scrapeTitle(t.link.Url)
+	if err != nil {
+		cs.errors <- err
+	}
+	t.link.Title = title
+	cs.links <- t.link
+	cs.pendingTaskCnt <- -1
+	cs.finished <- 1
 }
 
 func (this *Crawler) controller(initial_task_cnt int, wg *sync.WaitGroup, cs *channels) {

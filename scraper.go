@@ -25,7 +25,7 @@ func MapToAbsUrl(links []Link, errors_ []error, base_url *net_url.URL) ([]Link, 
 		if err != nil {
 			errors_ = append(errors_, errors.New(fmt.Sprintf("Error parsing child url %s, %v", link.Url, err)))
 		} else {
-			results = append(results, Link{base_url.ResolveReference(child_url).String(), link.Text})
+			results = append(results, Link{Url: base_url.ResolveReference(child_url).String(), Text: link.Text})
 		}
 	}
 	return results, errors_
@@ -71,4 +71,19 @@ func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
 	}
 
 	return child_links, errs
+}
+
+func scrapeTitle(url string) (string, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Failed to GET url %s, error %v", url, err))
+	}
+	defer resp.Body.Close()
+
+	title, err := parseTitle(resp.Body)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Failed to parse title of url %s, error %v", url, err))
+	}
+
+	return title, nil
 }

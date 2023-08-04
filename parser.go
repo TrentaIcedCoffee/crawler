@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"errors"
 	"io"
 	"strings"
 
@@ -19,7 +20,7 @@ func parseLinks(html_reader io.Reader) ([]Link, error) {
 		if node.Type == html.ElementNode && node.Data == "a" {
 			for _, attr := range node.Attr {
 				if attr.Key == "href" {
-					links = append(links, Link{strings.TrimSpace(attr.Val), strings.TrimSpace(extractText(node))})
+					links = append(links, Link{Url: strings.TrimSpace(attr.Val), Text: strings.TrimSpace(extractText(node))})
 					break
 				}
 			}
@@ -27,6 +28,26 @@ func parseLinks(html_reader io.Reader) ([]Link, error) {
 	})
 
 	return links, nil
+}
+
+func parseTitle(html_reader io.Reader) (string, error) {
+	root, err := html.Parse(html_reader)
+	if err != nil {
+		return "", err
+	}
+
+	var title string
+	dfs(root, func(node *html.Node) {
+		if node.Type == html.ElementNode && node.Data == "title" && node.FirstChild != nil {
+			title = node.FirstChild.Data
+		}
+	})
+
+	if title == "" {
+		return "", errors.New("Did not find title")
+	}
+
+	return title, nil
 }
 
 func dfs(node *html.Node, actor func(*html.Node)) {

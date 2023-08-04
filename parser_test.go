@@ -48,7 +48,7 @@ func TestParseLinksReturnsLinksWithText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, links, []Link{{"example.com", "text"}})
+	expectEqual(t, links, []Link{{Url: "example.com", Text: "text"}})
 }
 
 func TestParseLinksTrimTrailingWhitespaces(t *testing.T) {
@@ -59,7 +59,7 @@ func TestParseLinksTrimTrailingWhitespaces(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, links, []Link{{"example.com", "text"}})
+	expectEqual(t, links, []Link{{Url: "example.com", Text: "text"}})
 }
 
 func TestParseLinksReturnsMultipleLinkWithText(t *testing.T) {
@@ -76,7 +76,47 @@ func TestParseLinksReturnsMultipleLinkWithText(t *testing.T) {
 	}
 
 	expectEqual(t, links, []Link{
-		{"a.com", "a"},
-		{"b.com", "b"},
+		{Url: "a.com", Text: "a"},
+		{Url: "b.com", Text: "b"},
 	})
+}
+
+func TestParseTitleReturnsTitle(t *testing.T) {
+	title, err := parseTitle(strings.NewReader(`
+		<html>
+			<head>
+				<title>Title</title>
+			</head>
+		</html>
+	`))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	expectEqual(t, title, "Title")
+}
+
+func TestParseTitleReturnsErrorIfAbsent(t *testing.T) {
+	title, err := parseTitle(strings.NewReader(`
+		<html>
+			<head>
+			</head>
+		</html>
+	`))
+	if err == nil {
+		t.Fatalf("Expect to error when title is absent, but found %s as title", title)
+	}
+}
+
+func TestParseTitleReturnsErrorIfEmptyTitle(t *testing.T) {
+	title, err := parseTitle(strings.NewReader(`
+		<html>
+			<head>
+				<title></title>
+			</head>
+		</html>
+	`))
+	if err == nil {
+		t.Fatalf("Expect to error when title is absent, but found %s as title", title)
+	}
 }
