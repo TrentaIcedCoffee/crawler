@@ -14,7 +14,7 @@ func parseLinks(html_reader io.Reader) ([]Link, error) {
 		return nil, err
 	}
 
-	var links []Link
+	links := ShortArray[Link]()
 
 	dfs(root, func(node *html.Node) {
 		if node.Type == html.ElementNode && node.Data == "a" {

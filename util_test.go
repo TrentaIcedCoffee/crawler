@@ -4,6 +4,12 @@ import (
 	"testing"
 )
 
+func TestShortArrayReturnsEmptyArrayWithDesiredSmallCap(t *testing.T) {
+	arr := ShortArray[int]()
+	expectEqual(t, len(arr), 0)
+	expectEqual(t, cap(arr), 10)
+}
+
 func TestHash(t *testing.T) {
 	expectEqual(t, hash("abc"), "900150983cd24fb0d6963f7d28e17f72")
 }

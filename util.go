@@ -11,6 +11,10 @@ import (
 const kHttp = "http://"
 const kHttps = "https://"
 
+func ShortArray[T any]() []T {
+	return make([]T, 0, 10)
+}
+
 func hash(input string) string {
 	hash := md5.New()
 	hash.Write([]byte(input))
