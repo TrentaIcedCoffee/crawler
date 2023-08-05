@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func FilterOutSectionUrl(links []Link, errors []error) ([]Link, []error) {
+func filterOutSectionUrl(links []Link, errors []error) ([]Link, []error) {
 	results := ShortArray[Link]()
 	for _, link := range links {
 		if !strings.HasPrefix(link.Url, "#") {
@@ -18,7 +18,7 @@ func FilterOutSectionUrl(links []Link, errors []error) ([]Link, []error) {
 	return results, errors
 }
 
-func MapToAbsUrl(links []Link, errors_ []error, base_url *net_url.URL) ([]Link, []error) {
+func mapToAbsUrl(links []Link, errors_ []error, base_url *net_url.URL) ([]Link, []error) {
 	results := ShortArray[Link]()
 	for _, link := range links {
 		child_url, err := net_url.Parse(link.Url)
@@ -31,7 +31,7 @@ func MapToAbsUrl(links []Link, errors_ []error, base_url *net_url.URL) ([]Link, 
 	return results, errors_
 }
 
-func KeepOnlySameHostname(links []Link, errors_ []error, base_hostname string) ([]Link, []error) {
+func keepOnlySameHostname(links []Link, errors_ []error, base_hostname string) ([]Link, []error) {
 	results := ShortArray[Link]()
 	for _, link := range links {
 		child_url, err := net_url.Parse(link.Url)
@@ -55,7 +55,7 @@ func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
 
 	child_links, err := parseLinks(resp.Body)
 	if err != nil {
-		return nil, []error{errors.New(fmt.Sprintf("Failed to get links in HTML of %s, error %v", url, err))}
+		return nil, []error{errors.New(fmt.Sprintf("Failed to parse links in HTML of %s, error %v", url, err))}
 	}
 
 	base_url, err := net_url.Parse(url)
@@ -64,10 +64,10 @@ func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
 	}
 
 	errs := ShortArray[error]()
-	child_links, errs = FilterOutSectionUrl(child_links, errs)
-	child_links, errs = MapToAbsUrl(child_links, errs, base_url)
+	child_links, errs = filterOutSectionUrl(child_links, errs)
+	child_links, errs = mapToAbsUrl(child_links, errs, base_url)
 	if keep_only_same_domain {
-		child_links, errs = KeepOnlySameHostname(child_links, errs, base_url.Hostname())
+		child_links, errs = keepOnlySameHostname(child_links, errs, base_url.Hostname())
 	}
 
 	return child_links, errs

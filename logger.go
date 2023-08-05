@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 type logger struct {
@@ -12,7 +13,9 @@ type logger struct {
 }
 
 func (logger *logger) output(format string, a ...any) {
-	format = format + "\n"
+	if !strings.HasSuffix(format, "\n") {
+		format = format + "\n"
+	}
 	if logger.output_stream == nil {
 		fmt.Fprintf(os.Stdout, format, a...)
 	} else {
@@ -21,7 +24,9 @@ func (logger *logger) output(format string, a ...any) {
 }
 
 func (logger *logger) error(format string, a ...any) {
-	format = format + "\n"
+	if !strings.HasSuffix(format, "\n") {
+		format = format + "\n"
+	}
 	if logger.error_stream == nil {
 		fmt.Fprintf(os.Stderr, format, a...)
 	} else {
@@ -30,6 +35,9 @@ func (logger *logger) error(format string, a ...any) {
 }
 
 func (logger *logger) debug(format string, a ...any) {
-	format = "[DEBUG] " + format + "\n"
+	format = "[DEBUG] " + format
+	if !strings.HasSuffix(format, "\n") {
+		format = format + "\n"
+	}
 	fmt.Fprintf(os.Stdout, format, a...)
 }

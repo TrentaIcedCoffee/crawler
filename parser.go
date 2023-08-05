@@ -8,6 +8,13 @@ import (
 	"golang.org/x/net/html"
 )
 
+func dfs(node *html.Node, actor func(*html.Node)) {
+	actor(node)
+	for child := node.FirstChild; child != nil; child = child.NextSibling {
+		dfs(child, actor)
+	}
+}
+
 func parseLinks(html_reader io.Reader) ([]Link, error) {
 	root, err := html.Parse(html_reader)
 	if err != nil {
@@ -36,7 +43,7 @@ func parseTitle(html_reader io.Reader) (string, error) {
 		return "", err
 	}
 
-	var title string
+	title := ""
 	dfs(root, func(node *html.Node) {
 		if node.Type == html.ElementNode && node.Data == "title" && node.FirstChild != nil {
 			title = node.FirstChild.Data
@@ -50,15 +57,8 @@ func parseTitle(html_reader io.Reader) (string, error) {
 	return title, nil
 }
 
-func dfs(node *html.Node, actor func(*html.Node)) {
-	actor(node)
-	for child := node.FirstChild; child != nil; child = child.NextSibling {
-		dfs(child, actor)
-	}
-}
-
 func extractText(node *html.Node) string {
-	var text string
+	text := ""
 	dfs(node, func(node *html.Node) {
 		if node.Type == html.TextNode {
 			text += strings.TrimSpace(node.Data)
