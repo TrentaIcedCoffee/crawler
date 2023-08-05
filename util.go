@@ -48,7 +48,7 @@ func (this *ConcurrentSet) Has(key string) bool {
 	this.mutex.RLock()
 	defer this.mutex.RUnlock()
 
-	_, exists := this.data[key]
+	_, exists := this.data[Md5(key)]
 	return exists
 }
 
@@ -56,7 +56,7 @@ func (this *ConcurrentSet) Add(key string) {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 
-	this.data[key] = nil
+	this.data[Md5(key)] = nil
 }
 
 func (this *ConcurrentSet) Size() int {
