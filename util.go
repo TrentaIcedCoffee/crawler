@@ -8,10 +8,9 @@ import (
 	"testing"
 )
 
-func hash(input string) string {
-	hash := md5.New()
-	hash.Write([]byte(input))
-	return hex.EncodeToString(hash.Sum(nil))
+func Md5(input string) string {
+	hash := md5.Sum([]byte(input))
+	return hex.EncodeToString(hash[:])
 }
 
 func ShortArray[T any]() []T {

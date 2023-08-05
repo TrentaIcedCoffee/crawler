@@ -165,11 +165,11 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 		cs.errors <- err
 	}
 	for _, link := range links {
-		if this.visited.has(hash(link.Url)) {
+		if this.visited.has(Md5(link.Url)) {
 			continue
 		}
 		// Ideally we should check if the add inserts a new value, but this is fine.
-		this.visited.add(hash(link.Url))
+		this.visited.add(Md5(link.Url))
 		cs.tasks <- task{taskType: pageTitleTask, link: link}
 		cs.pendingTaskCnt <- 1
 		cs.total <- 1

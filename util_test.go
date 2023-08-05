@@ -10,8 +10,8 @@ func TestShortArrayReturnsEmptyArrayWithDesiredSmallCap(t *testing.T) {
 	ExpectEqualInTest(t, cap(arr), 10)
 }
 
-func TestHash(t *testing.T) {
-	ExpectEqualInTest(t, hash("abc"), "900150983cd24fb0d6963f7d28e17f72")
+func TestMd5ReturnsHashEqualComputed(t *testing.T) {
+	ExpectEqualInTest(t, Md5("abc"), "900150983cd24fb0d6963f7d28e17f72")
 }
 
 func TestToCsvReturnsRawWhenNoSpecialChar(t *testing.T) {
