@@ -77,7 +77,7 @@ func (this *Crawler) Crawl(urls []string) *Crawler {
 		select {
 		case link, ok := <-cs.links:
 			if ok {
-				this.logger.output("%s,%s,%s", link.Url, toCsv(link.Text), toCsv(link.Title))
+				this.logger.output("%s,%s,%s", link.Url, ToCsvRow(link.Text), ToCsvRow(link.Title))
 			} else {
 				links_c_closed = true
 			}

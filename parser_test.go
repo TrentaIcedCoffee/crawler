@@ -17,7 +17,7 @@ func TestExtractTextReturnsTextWithOrder(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, extractText(node), "abc")
+	ExpectEqualInTest(t, extractText(node), "abc")
 }
 
 func TestExtractTextReplaceNewlineToSpace(t *testing.T) {
@@ -26,7 +26,7 @@ func TestExtractTextReplaceNewlineToSpace(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, extractText(node), "a b")
+	ExpectEqualInTest(t, extractText(node), "a b")
 }
 
 func TestExtractTextReturnsTextOfAnchor(t *testing.T) {
@@ -37,7 +37,7 @@ func TestExtractTextReturnsTextOfAnchor(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, extractText(node), "text")
+	ExpectEqualInTest(t, extractText(node), "text")
 }
 
 func TestParseLinksReturnsLinksWithText(t *testing.T) {
@@ -48,7 +48,7 @@ func TestParseLinksReturnsLinksWithText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, links, []Link{{Url: "example.com", Text: "text"}})
+	ExpectEqualInTest(t, links, []Link{{Url: "example.com", Text: "text"}})
 }
 
 func TestParseLinksTrimTrailingWhitespaces(t *testing.T) {
@@ -59,7 +59,7 @@ func TestParseLinksTrimTrailingWhitespaces(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, links, []Link{{Url: "example.com", Text: "text"}})
+	ExpectEqualInTest(t, links, []Link{{Url: "example.com", Text: "text"}})
 }
 
 func TestParseLinksReturnsMultipleLinkWithText(t *testing.T) {
@@ -75,7 +75,7 @@ func TestParseLinksReturnsMultipleLinkWithText(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, links, []Link{
+	ExpectEqualInTest(t, links, []Link{
 		{Url: "a.com", Text: "a"},
 		{Url: "b.com", Text: "b"},
 	})
@@ -93,7 +93,7 @@ func TestParseTitleReturnsTitle(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	expectEqual(t, title, "Title")
+	ExpectEqualInTest(t, title, "Title")
 }
 
 func TestParseTitleReturnsErrorIfAbsent(t *testing.T) {
