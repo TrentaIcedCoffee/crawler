@@ -52,11 +52,19 @@ func (this *ConcurrentSet) Has(key string) bool {
 	return exists
 }
 
-func (this *ConcurrentSet) Add(key string) {
+// Returns true if added a new entry.
+func (this *ConcurrentSet) Add(key string) bool {
 	this.mutex.Lock()
 	defer this.mutex.Unlock()
 
-	this.data[Md5(key)] = nil
+	hash := Md5(key)
+	_, exists := this.data[hash]
+	if exists {
+		return false
+	} else {
+		this.data[Md5(key)] = nil
+		return true
+	}
 }
 
 func (this *ConcurrentSet) Size() int {
