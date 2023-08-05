@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 )
 
@@ -28,4 +29,36 @@ func ToCsvRow(raw string) string {
 		return "\"" + strings.ReplaceAll(raw, "\"", "\"\"") + "\""
 	}
 	return raw
+}
+
+// ConcurrentSet
+
+type ConcurrentSet struct {
+	mutex sync.RWMutex
+	data  map[string]interface{}
+}
+
+func NewConcurrentSet() *ConcurrentSet {
+	return &ConcurrentSet{
+		data: make(map[string]interface{}),
+	}
+}
+
+func (this *ConcurrentSet) Has(key string) bool {
+	this.mutex.RLock()
+	defer this.mutex.RUnlock()
+
+	_, exists := this.data[key]
+	return exists
+}
+
+func (this *ConcurrentSet) Add(key string) {
+	this.mutex.Lock()
+	defer this.mutex.Unlock()
+
+	this.data[key] = nil
+}
+
+func (this *ConcurrentSet) Size() int {
+	return len(this.data)
 }

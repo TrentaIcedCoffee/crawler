@@ -26,14 +26,14 @@ type Config struct {
 
 type Crawler struct {
 	config  *Config
-	visited *concurrentSet
+	visited *ConcurrentSet
 	logger  *logger
 }
 
 func NewCrawler(config *Config) *Crawler {
 	return &Crawler{
 		config:  config,
-		visited: newConcurrentSet(),
+		visited: NewConcurrentSet(),
 		logger:  &logger{output_stream: nil, error_stream: nil},
 	}
 }
@@ -165,11 +165,11 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 		cs.errors <- err
 	}
 	for _, link := range links {
-		if this.visited.has(Md5(link.Url)) {
+		if this.visited.Has(Md5(link.Url)) {
 			continue
 		}
 		// Ideally we should check if the add inserts a new value, but this is fine.
-		this.visited.add(Md5(link.Url))
+		this.visited.Add(Md5(link.Url))
 		cs.tasks <- task{taskType: pageTitleTask, link: link}
 		cs.pendingTaskCnt <- 1
 		cs.total <- 1
