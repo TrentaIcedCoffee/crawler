@@ -9,7 +9,7 @@ import (
 )
 
 func filterOutSectionUrl(links []Link, errors []error) ([]Link, []error) {
-	results := ShortArray[Link]()
+	results := shortArray[Link]()
 	for _, link := range links {
 		if !strings.HasPrefix(link.Url, "#") {
 			results = append(results, link)
@@ -19,7 +19,7 @@ func filterOutSectionUrl(links []Link, errors []error) ([]Link, []error) {
 }
 
 func mapToAbsUrl(links []Link, errors_ []error, base_url *net_url.URL) ([]Link, []error) {
-	results := ShortArray[Link]()
+	results := shortArray[Link]()
 	for _, link := range links {
 		child_url, err := net_url.Parse(link.Url)
 		if err != nil {
@@ -32,7 +32,7 @@ func mapToAbsUrl(links []Link, errors_ []error, base_url *net_url.URL) ([]Link, 
 }
 
 func keepOnlySameHostname(links []Link, errors_ []error, base_hostname string) ([]Link, []error) {
-	results := ShortArray[Link]()
+	results := shortArray[Link]()
 	for _, link := range links {
 		child_url, err := net_url.Parse(link.Url)
 		if err != nil {
@@ -63,7 +63,7 @@ func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
 		return nil, []error{errors.New(fmt.Sprintf("Error parsing base url %s, %v", url, err))}
 	}
 
-	errs := ShortArray[error]()
+	errs := shortArray[error]()
 	child_links, errs = filterOutSectionUrl(child_links, errs)
 	child_links, errs = mapToAbsUrl(child_links, errs, base_url)
 	if keep_only_same_domain {
