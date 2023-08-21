@@ -15,11 +15,11 @@ type Link struct {
 }
 
 type Config struct {
-	Depth                    int
-	Breadth                  int
-	NumWorkers               int
-	RequestThrottlePerWorker time.Duration
-	SameHostname             bool
+	Depth            int
+	Breadth          int
+	NumWorkers       int
+	RequestThrottler time.Duration
+	SameHostname     bool
 }
 
 type Crawler struct {
@@ -39,7 +39,7 @@ func NewCrawler(config *Config, output_stream io.Writer, error_stream io.Writer,
 }
 
 func (this *Crawler) Crawl(urls []string) *Crawler {
-	cs := makeAllChannels()
+	cs := makeAllChannels(this.config.RequestThrottler)
 
 	var wg sync.WaitGroup
 

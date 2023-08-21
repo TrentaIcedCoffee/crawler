@@ -23,6 +23,7 @@ type task struct {
 }
 
 type channels struct {
+	limiter        <-chan time.Time
 	tasks          chan task
 	pendingTaskCnt chan int
 	links          chan Link
@@ -31,8 +32,9 @@ type channels struct {
 	total          chan int
 }
 
-func makeAllChannels() *channels {
+func makeAllChannels(request_throttle time.Duration) *channels {
 	return &channels{
+		limiter:        time.Tick(request_throttle),
 		tasks:          make(chan task, kChannelMaxSize),
 		pendingTaskCnt: make(chan int, kChannelDefautSize),
 		links:          make(chan Link, kChannelDefautSize),
@@ -67,10 +69,7 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 	defer this.logger.debug("Worker %d exit", id)
 	defer wg.Done()
 
-	limiter := time.Tick(this.config.RequestThrottlePerWorker)
-
 	for t := range cs.tasks {
-		<-limiter
 		switch t.taskType {
 		case crawlingTask:
 			this.handleCrawlingTask(&t, cs)
@@ -81,6 +80,7 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 }
 
 func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
+	<-cs.limiter
 	all_links, errs := scrapeLinks(t.url, this.config.SameHostname)
 	for _, err := range errs {
 		cs.errors <- err
@@ -126,6 +126,7 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 }
 
 func (this *Crawler) handlePageTitleTask(t *task, cs *channels) {
+	<-cs.limiter
 	title, err := scrapeTitle(t.link.Url)
 	if err != nil {
 		cs.errors <- err
