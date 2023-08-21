@@ -81,18 +81,38 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 }
 
 func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
-	links, errs := scrapeLinks(t.url, this.config.SameHostname)
-	if this.config.Breadth > 0 && len(links) > this.config.Breadth {
-		links = links[:this.config.Breadth]
-	}
+	all_links, errs := scrapeLinks(t.url, this.config.SameHostname)
 	for _, err := range errs {
 		cs.errors <- err
 	}
+
+	// Pruning links.
+	links := shortArray[Link]()
+	for _, link := range all_links {
+		should_keep, err := this.pruner.ShouldKeep(link.Url)
+		if err != nil {
+			cs.errors <- err
+			continue
+		}
+		if should_keep {
+			links = append(links, link)
+		}
+	}
+
+	// Limiting to max breadth.
+	if this.config.Breadth > 0 && len(links) > this.config.Breadth {
+		links = links[:this.config.Breadth]
+	}
+
 	for _, link := range links {
 		if !this.visited.add(link.Url) {
 			continue
 		}
+
+		link.Depth = t.depth
+
 		this.addTask(cs, task{taskType: pageTitleTask, link: link})
+
 		if t.depth+1 < this.config.Depth {
 			this.addTask(cs, task{
 				taskType: crawlingTask,
@@ -101,6 +121,7 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 			})
 		}
 	}
+
 	this.finishedTask(cs)
 }
 
@@ -157,7 +178,7 @@ func (this *Crawler) emitter(wg *sync.WaitGroup, cs *channels) {
 		select {
 		case link, ok := <-cs.links:
 			if ok {
-				this.logger.output("%s,%s,%s", link.Url, toCsvRow(link.Text), toCsvRow(link.Title))
+				this.logger.output("%d,%s,%s,%s", link.Depth, link.Url, toCsvRow(link.Text), toCsvRow(link.Title))
 			} else {
 				links_c_closed = true
 			}

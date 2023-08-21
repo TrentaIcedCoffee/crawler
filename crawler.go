@@ -8,6 +8,7 @@ import (
 )
 
 type Link struct {
+	Depth int
 	Url   string
 	Text  string
 	Title string
@@ -25,24 +26,16 @@ type Crawler struct {
 	config  *Config
 	visited *concurrentSet
 	logger  *logger
+	pruner  Pruner
 }
 
-func NewCrawler(config *Config) *Crawler {
+func NewCrawler(config *Config, output_stream io.Writer, error_stream io.Writer, pruner Pruner) *Crawler {
 	return &Crawler{
 		config:  config,
 		visited: newConcurrentSet(),
-		logger:  &logger{output_stream: nil, error_stream: nil},
+		logger:  &logger{output_stream: output_stream, error_stream: error_stream},
+		pruner:  pruner,
 	}
-}
-
-func (this *Crawler) OutputTo(output_stream io.Writer) *Crawler {
-	this.logger.output_stream = output_stream
-	return this
-}
-
-func (this *Crawler) ErrorTo(error_stream io.Writer) *Crawler {
-	this.logger.error_stream = error_stream
-	return this
 }
 
 func (this *Crawler) Crawl(urls []string) *Crawler {
