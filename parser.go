@@ -45,7 +45,7 @@ func parseTitle(html_reader io.Reader) (string, error) {
 
 	title := ""
 	dfs(root, func(node *html.Node) {
-		if node.Type == html.ElementNode && node.Data == "title" && node.FirstChild != nil {
+		if node.Type == html.ElementNode && node.Data == "title" && node.Parent != nil && node.Parent.Data == "head" && node.FirstChild != nil {
 			title = node.FirstChild.Data
 		}
 	})

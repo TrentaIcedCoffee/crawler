@@ -47,9 +47,9 @@ func keepOnlySameHostname(links []Link, errors_ []error, base_hostname string) (
 }
 
 func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
-	resp, err := http.Get(url)
+	resp, err := requestUrl(url)
 	if err != nil {
-		return nil, []error{errors.New(fmt.Sprintf("Failed to GET url %s, error %v", url, err))}
+		return nil, []error{err}
 	}
 	defer resp.Body.Close()
 
@@ -74,9 +74,9 @@ func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
 }
 
 func scrapeTitle(url string) (string, error) {
-	resp, err := http.Get(url)
+	resp, err := requestUrl(url)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Failed to GET url %s, error %v", url, err))
+		return "", err
 	}
 	defer resp.Body.Close()
 
@@ -86,4 +86,17 @@ func scrapeTitle(url string) (string, error) {
 	}
 
 	return title, nil
+}
+
+func requestUrl(url string) (*http.Response, error) {
+	resp, err := http.Get(url)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("Failed to GET url %s, error %v", url, err))
+	}
+	if resp.StatusCode != http.StatusOK {
+		resp.Body.Close()
+		return nil, errors.New(fmt.Sprintf("Failed to GET url %s with error code %v", url, resp.StatusCode))
+	}
+
+	return resp, nil
 }
