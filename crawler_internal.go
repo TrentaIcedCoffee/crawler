@@ -1,6 +1,9 @@
 package crawler
 
 import (
+	"encoding/csv"
+	"fmt"
+	"strconv"
 	"sync"
 	"time"
 )
@@ -127,11 +130,12 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 
 func (this *Crawler) handlePageTitleTask(t *task, cs *channels) {
 	<-cs.limiter
-	title, err := scrapeTitle(t.link.Url)
+	title, content, err := scrapePage(t.link.Url)
 	if err != nil {
 		cs.errors <- err
 	}
 	t.link.Title = title
+	t.link.Content = content
 	cs.links <- t.link
 	this.finishedTask(cs)
 }
@@ -173,13 +177,38 @@ func (this *Crawler) emitter(wg *sync.WaitGroup, cs *channels) {
 	defer this.logger.debug("Emitter exit")
 	defer wg.Done()
 
+	csv_writer := csv.NewWriter(this.logger.output_stream)
+
+	// Writing the header of result csv.
+	err := csv_writer.Write([]string{
+		"Depth",
+		"Url",
+		"Text",
+		"Title",
+		"Content",
+	})
+	if err != nil {
+		panic(fmt.Sprintf("FATAL error in writing csv header, %v", err))
+	}
+	csv_writer.Flush()
+	if err := csv_writer.Error(); err != nil {
+		panic(fmt.Sprintf("FATAL error in flushing csv header, %v", err))
+	}
+
 	links_c_closed := false
 	errors_c_closed := false
 	for {
 		select {
 		case link, ok := <-cs.links:
 			if ok {
-				this.logger.output("%d,%s,%s,%s", link.Depth, link.Url, toCsvRow(link.Text), toCsvRow(link.Title))
+				err := csv_writer.Write([]string{strconv.Itoa(link.Depth), link.Url, link.Text, link.Title, link.Content})
+				if err != nil {
+					this.logger.error("Error in writing result, %v", err)
+				}
+				csv_writer.Flush()
+				if err := csv_writer.Error(); err != nil {
+					this.logger.error("Error in flushing result, %v", err)
+				}
 			} else {
 				links_c_closed = true
 			}

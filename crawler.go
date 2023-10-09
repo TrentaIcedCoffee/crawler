@@ -8,10 +8,11 @@ import (
 )
 
 type Link struct {
-	Depth int
-	Url   string
-	Text  string
-	Title string
+	Depth   int
+	Url     string
+	Text    string
+	Title   string
+	Content string
 }
 
 type Config struct {

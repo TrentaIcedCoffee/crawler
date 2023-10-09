@@ -81,12 +81,16 @@ func TestParseLinksReturnsMultipleLinkWithText(t *testing.T) {
 	})
 }
 
-func TestParseTitleReturnsTitle(t *testing.T) {
-	title, err := parseTitle(strings.NewReader(`
+func TestParsePageReturnsTitleAndContent(t *testing.T) {
+	title, content, err := parsePage(strings.NewReader(`
 		<html>
 			<head>
 				<title>Title</title>
 			</head>
+			<body>
+				<h1>Header</h1>
+				<p>Content</p>
+			</body>
 		</html>
 	`))
 	if err != nil {
@@ -94,29 +98,22 @@ func TestParseTitleReturnsTitle(t *testing.T) {
 	}
 
 	expectEqualInTest(t, title, "Title")
+	expectEqualInTest(t, content, "Header Content")
 }
 
-func TestParseTitleReturnsErrorIfAbsent(t *testing.T) {
-	title, err := parseTitle(strings.NewReader(`
+func TestParsePageIgnoresNonContentTags(t *testing.T) {
+	_, content, err := parsePage(strings.NewReader(`
 		<html>
-			<head>
-			</head>
+			<body>
+				<span>span</span>
+				<button>Click Me!</button>
+			</body>
 		</html>
 	`))
-	if err == nil {
-		t.Fatalf("Expect to error when title is absent, but found %s as title", title)
+	if err != nil {
+		t.Fatal(err)
 	}
-}
 
-func TestParseTitleReturnsErrorIfEmptyTitle(t *testing.T) {
-	title, err := parseTitle(strings.NewReader(`
-		<html>
-			<head>
-				<title></title>
-			</head>
-		</html>
-	`))
-	if err == nil {
-		t.Fatalf("Expect to error when title is absent, but found %s as title", title)
-	}
+	expectEqualInTest(t, content, "")
+
 }

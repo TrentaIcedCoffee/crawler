@@ -73,19 +73,19 @@ func scrapeLinks(url string, keep_only_same_domain bool) ([]Link, []error) {
 	return child_links, errs
 }
 
-func scrapeTitle(url string) (string, error) {
+func scrapePage(url string) (string, string, error) {
 	resp, err := requestUrl(url)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	defer resp.Body.Close()
 
-	title, err := parseTitle(resp.Body)
+	title, content, err := parsePage(resp.Body)
 	if err != nil {
-		return "", errors.New(fmt.Sprintf("Failed to parse title of url %s, error %v", url, err))
+		return "", "", errors.New(fmt.Sprintf("Failed to parse title of url %s, error %v", url, err))
 	}
 
-	return title, nil
+	return title, content, nil
 }
 
 func requestUrl(url string) (*http.Response, error) {
