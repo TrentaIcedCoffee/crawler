@@ -10,11 +10,11 @@ In your main func
 crawler.NewCrawler(&crawler.Config{
 		Depth:            3,
 		Breadth:          0,                      // Use breadth = 0 to get all links on a page.
-		NumWorkers:       50,                     // Use more workers if having heavy workload per request such as pruning.
-		RequestThrottler: 100 * time.Millisecond, // 10 requests per second.
-		SameHostname:     true,                   // Keep only links from the same hostname.
-	}, os.Stdout, os.Stderr, &crawler.NoOpPruner{}).Crawl([]string{
+		NumWorkers:       50,
+		RequestThrottler: 100 * time.Millisecond, // 10 requests per second for each **domain**.
+	}, os.Stdout, os.Stderr, &crawler.SameDomain{}).Crawl([]string{
 		"https://example.com",
+		"https://another.com"
 	})
 ```
 
