@@ -10,18 +10,30 @@ func TestShortArrayReturnsEmptyArrayWithDesiredSmallCap(t *testing.T) {
 	expectEqualInTest(t, cap(arr), 10)
 }
 
-func TestToCsvReturnsRawWhenNoSpecialChar(t *testing.T) {
-	expectEqualInTest(t, toCsvRow("abc"), "abc")
+func TestGetHostOfUrl(t *testing.T) {
+	host, err := getHost("https://www.example.com/some/path?query=123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectEqualInTest(t, host, "www.example.com")
+
+	host, err = getHost("https://example.com/a")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectEqualInTest(t, host, "example.com")
 }
 
-func TestToCsvQuotesComma(t *testing.T) {
-	expectEqualInTest(t, toCsvRow("a,bc"), "\"a,bc\"")
-}
+func TestSameHost(t *testing.T) {
+	is_same_domain, err := isSameHost("https://www.example.com", "https://www.example.com/a/b/c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectEqualInTest(t, is_same_domain, true)
 
-func TestToCsvQuotesNewline(t *testing.T) {
-	expectEqualInTest(t, toCsvRow("a\nbc"), "\"a\nbc\"")
-}
-
-func TestToCsvDoubleQuotes(t *testing.T) {
-	expectEqualInTest(t, toCsvRow("a\"bc"), "\"a\"\"bc\"")
+	is_same_domain, err = isSameHost("http://www.example.com", "http://www.another.com/a/b/c")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expectEqualInTest(t, is_same_domain, false)
 }

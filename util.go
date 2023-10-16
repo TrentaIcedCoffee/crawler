@@ -1,8 +1,10 @@
 package crawler
 
 import (
+	"errors"
+	"fmt"
+	net_url "net/url"
 	"reflect"
-	"strings"
 	"sync"
 	"testing"
 )
@@ -17,11 +19,32 @@ func expectEqualInTest(t *testing.T, actual interface{}, expect interface{}) {
 	}
 }
 
-func toCsvRow(raw string) string {
-	if strings.ContainsAny(raw, ",\"\n") {
-		return "\"" + strings.ReplaceAll(raw, "\"", "\"\"") + "\""
+func getHost(url string) (string, error) {
+	url_object, err := net_url.Parse(url)
+	if err != nil {
+		return "", err
 	}
-	return raw
+	return url_object.Hostname(), nil
+}
+
+func isSameHost(parent_url string, child_url string) (bool, error) {
+	parent_host, err := getHost(parent_url)
+	if err != nil {
+		return false, err
+	}
+
+	child_host, err := getHost(child_url)
+	if err != nil {
+		return false, err
+	}
+
+	if parent_host == "" {
+		return false, errors.New(fmt.Sprintf("Host is empty for parent url %s", parent_url))
+	} else if child_host == "" {
+		return false, errors.New(fmt.Sprintf("Host is empty for child url %s", child_url))
+	}
+
+	return parent_host == child_host, nil
 }
 
 // ConcurrentSet

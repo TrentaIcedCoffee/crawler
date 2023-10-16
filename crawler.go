@@ -20,7 +20,6 @@ type Config struct {
 	Breadth          int
 	NumWorkers       int
 	RequestThrottler time.Duration
-	SameHostname     bool
 }
 
 type Crawler struct {
@@ -40,13 +39,14 @@ func NewCrawler(config *Config, output_stream io.Writer, error_stream io.Writer,
 }
 
 func (this *Crawler) Crawl(urls []string) *Crawler {
-	cs := makeAllChannels(this.config.RequestThrottler)
+	throttlers := makeThrottlers(this.config.RequestThrottler, urls)
+	cs := makeAllChannels()
 
 	var wg sync.WaitGroup
 
 	for i := 0; i < this.config.NumWorkers; i++ {
 		wg.Add(1)
-		go this.worker(i, &wg, cs)
+		go this.worker(i, &wg, cs, throttlers)
 	}
 	wg.Add(1)
 	go this.peeker(&wg, cs)

@@ -15,7 +15,7 @@ type taskType int
 
 const (
 	crawlingTask taskType = iota
-	pageTitleTask
+	pageTask
 )
 
 type task struct {
@@ -26,7 +26,6 @@ type task struct {
 }
 
 type channels struct {
-	limiter        <-chan time.Time
 	tasks          chan task
 	pendingTaskCnt chan int
 	links          chan Link
@@ -35,9 +34,20 @@ type channels struct {
 	total          chan int
 }
 
-func makeAllChannels(request_throttle time.Duration) *channels {
+func makeThrottlers(request_throttle time.Duration, urls []string) *map[string]<-chan time.Time {
+	throttlers := make(map[string]<-chan time.Time)
+	for _, url := range urls {
+		domain, err := getHost(url)
+		if err != nil {
+			panic(fmt.Sprintf("Cannot parse domain of url %s\n", url))
+		}
+		throttlers[domain] = time.Tick(request_throttle)
+	}
+	return &throttlers
+}
+
+func makeAllChannels() *channels {
 	return &channels{
-		limiter:        time.Tick(request_throttle),
 		tasks:          make(chan task, kChannelMaxSize),
 		pendingTaskCnt: make(chan int, kChannelDefautSize),
 		links:          make(chan Link, kChannelDefautSize),
@@ -67,7 +77,7 @@ func (this *Crawler) finishedTask(cs *channels) {
 	cs.finished <- 1
 }
 
-func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
+func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels, throttlers *map[string]<-chan time.Time) {
 	this.logger.debug("Worker %d spawned", id)
 	defer this.logger.debug("Worker %d exit", id)
 	defer wg.Done()
@@ -75,16 +85,28 @@ func (this *Crawler) worker(id int, wg *sync.WaitGroup, cs *channels) {
 	for t := range cs.tasks {
 		switch t.taskType {
 		case crawlingTask:
-			this.handleCrawlingTask(&t, cs)
-		case pageTitleTask:
-			this.handlePageTitleTask(&t, cs)
+			this.handleCrawlingTask(&t, cs, throttlers)
+		case pageTask:
+			this.handlePageTask(&t, cs, throttlers)
 		}
 	}
 }
 
-func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
-	<-cs.limiter
-	all_links, errs := scrapeLinks(t.url, this.config.SameHostname)
+func (this *Crawler) handleCrawlingTask(t *task, cs *channels, throttlers *map[string]<-chan time.Time) {
+	defer this.finishedTask(cs)
+
+	host, err := getHost(t.url)
+	if err != nil {
+		cs.errors <- err
+		return
+	}
+
+	throttler, ok := (*throttlers)[host]
+	if ok {
+		<-throttler
+	}
+
+	all_links, errs := scrapeLinks(t.url)
 	for _, err := range errs {
 		cs.errors <- err
 	}
@@ -92,7 +114,7 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 	// Pruning links.
 	links := shortArray[Link]()
 	for _, link := range all_links {
-		should_keep, err := this.pruner.ShouldKeep(link.Url)
+		should_keep, err := this.pruner.ShouldKeep(t.url, link.Url)
 		if err != nil {
 			cs.errors <- err
 			continue
@@ -114,7 +136,7 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 
 		link.Depth = t.depth
 
-		this.addTask(cs, task{taskType: pageTitleTask, link: link})
+		this.addTask(cs, task{taskType: pageTask, link: link})
 
 		if t.depth+1 < this.config.Depth {
 			this.addTask(cs, task{
@@ -124,12 +146,22 @@ func (this *Crawler) handleCrawlingTask(t *task, cs *channels) {
 			})
 		}
 	}
-
-	this.finishedTask(cs)
 }
 
-func (this *Crawler) handlePageTitleTask(t *task, cs *channels) {
-	<-cs.limiter
+func (this *Crawler) handlePageTask(t *task, cs *channels, throttlers *map[string]<-chan time.Time) {
+	defer this.finishedTask(cs)
+
+	host, err := getHost(t.link.Url)
+	if err != nil {
+		cs.errors <- err
+		return
+	}
+
+	throttler, ok := (*throttlers)[host]
+	if ok {
+		<-throttler
+	}
+
 	title, content, err := scrapePage(t.link.Url)
 	if err != nil {
 		cs.errors <- err
@@ -137,7 +169,6 @@ func (this *Crawler) handlePageTitleTask(t *task, cs *channels) {
 	t.link.Title = title
 	t.link.Content = content
 	cs.links <- t.link
-	this.finishedTask(cs)
 }
 
 func (this *Crawler) peeker(wg *sync.WaitGroup, cs *channels) {

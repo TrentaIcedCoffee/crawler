@@ -1,11 +1,11 @@
 package crawler
 
 type Pruner interface {
-	ShouldKeep(url string) (bool, error)
+	ShouldKeep(parent_url string, child_url string) (bool, error)
 }
 
-type NoOpPruner struct{}
+type SameDomain struct{}
 
-func (this *NoOpPruner) ShouldKeep(url string) (bool, error) {
-	return true, nil
+func (this *SameDomain) ShouldKeep(parent_url string, child_url string) (bool, error) {
+	return isSameHost(parent_url, child_url)
 }
