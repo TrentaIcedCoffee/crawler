@@ -7,7 +7,17 @@ import (
 	"reflect"
 	"sync"
 	"testing"
+	"unicode/utf8"
 )
+
+func isUtf8(strings []string) bool {
+	for _, str := range strings {
+		if !utf8.ValidString(str) {
+			return false
+		}
+	}
+	return true
+}
 
 func shortArray[T any]() []T {
 	return make([]T, 0, 10)

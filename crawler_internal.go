@@ -232,7 +232,11 @@ func (this *Crawler) emitter(wg *sync.WaitGroup, cs *channels) {
 		select {
 		case link, ok := <-cs.links:
 			if ok {
-				err := csv_writer.Write([]string{strconv.Itoa(link.Depth), link.Url, link.Text, link.Title, link.Content})
+				row := []string{strconv.Itoa(link.Depth), link.Url, link.Text, link.Title, link.Content}
+				if !isUtf8(row) {
+					this.logger.error("Non UTF-8 row, %v", row)
+				}
+				err := csv_writer.Write(row)
 				if err != nil {
 					this.logger.error("Error in writing result, %v", err)
 				}
