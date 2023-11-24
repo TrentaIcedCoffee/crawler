@@ -234,7 +234,7 @@ func (this *Crawler) emitter(wg *sync.WaitGroup, cs *channels) {
 			if ok {
 				row := []string{strconv.Itoa(link.Depth), link.Url, link.Text, link.Title, link.Content}
 				if !isUtf8(row) {
-					this.logger.error("Non UTF-8 row, %v", row)
+					this.logger.error("Non UTF-8 content in url %s", link.Url)
 				}
 				err := csv_writer.Write(row)
 				if err != nil {
