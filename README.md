@@ -9,16 +9,16 @@ In your main func
 ```go
 crawler.NewCrawler(&crawler.Config{
 		Depth:            3,
-		Breadth:          0,                      // Use breadth = 0 to get all links on a page.
-		NumWorkers:       50,
+		Breadth:          0,                      // Using breadth = 0 to get all links on a page.
+		NumWorkers:       100,
 		RequestThrottler: 100 * time.Millisecond, // 10 requests per second for each **domain**.
-	}, os.Stdout, os.Stderr, &crawler.SameDomain{}).Crawl([]string{
+	}, outputFile, errorFile, &crawler.SameDomain{}).Crawl([]string{
 		"https://example.com",
 		"https://another.com"
 	})
 ```
 
-Output is in CSV format of `<depth>,<url>,<text>,<page_title>`. Can be directly loaded to Pandas. Feel free to use.
+Output is in CSV format of `<depth>,<url>,<text>,<page_title>,<page_content>`. Can be directly loaded to Pandas.
 
 ## Design
 
