@@ -62,6 +62,21 @@ func scrapeLinks(url string) ([]Link, []error) {
 	return child_links, errs
 }
 
+func scrapeTitle(url string) (string, error) {
+	resp, err := requestUrl(url)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	title, err := parseTitle(resp.Body)
+	if err != nil {
+		return "", errors.New(fmt.Sprintf("Failed to parse title of url %s, error %v", url, err))
+	}
+
+	return title, nil
+}
+
 func scrapePage(url string) (string, string, error) {
 	resp, err := requestUrl(url)
 	if err != nil {

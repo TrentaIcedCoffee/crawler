@@ -162,12 +162,12 @@ func (this *Crawler) handlePageTask(t *task, cs *channels, throttlers *map[strin
 		<-throttler
 	}
 
-	title, content, err := scrapePage(t.link.Url)
+	title, err := scrapeTitle(t.link.Url)
 	if err != nil {
 		cs.errors <- err
 	}
 	t.link.Title = title
-	t.link.Content = content
+	t.link.Content = ""
 	cs.links <- t.link
 }
 

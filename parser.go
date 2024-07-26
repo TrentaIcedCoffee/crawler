@@ -48,6 +48,22 @@ func extractText(node *html.Node) string {
 	return strings.ReplaceAll(text, "\n", " ")
 }
 
+func parseTitle(html_reader io.Reader) (string, error) {
+	root, err := html.Parse(html_reader)
+	if err != nil {
+		return "", err
+	}
+
+	var title string
+	dfs(root, func(node *html.Node) {
+		if node.Type == html.TextNode && node.Parent != nil && isHtmlTitle(node.Parent) {
+			title = strings.TrimSpace(node.Data)
+		}
+	})
+
+	return title, nil
+}
+
 func parsePage(html_reader io.Reader) (string, string, error) {
 	root, err := html.Parse(html_reader)
 	if err != nil {
